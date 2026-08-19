@@ -1,9 +1,11 @@
 services:
   exporter:
+    image: mail-exporter:local
     build:
       context: ./exporter
       target: development
+    environment:
+      MAIL_ACCOUNTS_JSON: ${MAIL_ACCOUNTS_JSON:-[]}
     volumes:
       - ./exporter:/app
       - ./output:/output
-    command: python -m mail_exporter

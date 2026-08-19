@@ -11,7 +11,7 @@ COPY src ./src
 
 FROM base AS development
 
-CMD ["python", "-m", "mail_exporter"]
+ENTRYPOINT ["python", "-m", "mail_exporter"]
 
 FROM base AS production
 
@@ -20,4 +20,4 @@ RUN useradd --create-home --shell /usr/sbin/nologin exporter \
 
 USER exporter
 
-CMD ["python", "-m", "mail_exporter"]
+ENTRYPOINT ["python", "-m", "mail_exporter"]

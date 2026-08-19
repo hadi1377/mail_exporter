@@ -1,8 +1,10 @@
 services:
   exporter:
+    image: mail-exporter:prod
     build:
       context: ./exporter
       target: production
+    environment:
+      MAIL_ACCOUNTS_JSON: ${MAIL_ACCOUNTS_JSON:-[]}
     volumes:
       - ./output:/output
-    command: python -m mail_exporter

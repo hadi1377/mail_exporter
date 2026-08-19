@@ -6,8 +6,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
     PYTHONPATH=/app/src
 
-COPY pyproject.toml README.md ./
-COPY src ./src
+COPY exporter/pyproject.toml ./pyproject.toml
+COPY README.md ./README.md
+COPY exporter/src ./src
 
 RUN pip install --no-cache-dir .
 

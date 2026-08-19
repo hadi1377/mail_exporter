@@ -1,4 +1,6 @@
+.git/
+.env
+output/
 __pycache__/
 *.py[cod]
 .venv/
-.git/

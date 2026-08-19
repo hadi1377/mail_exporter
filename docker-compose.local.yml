@@ -2,7 +2,8 @@ services:
   exporter:
     image: mail-exporter:local
     build:
-      context: ./exporter
+      context: .
+      dockerfile: ./exporter/Dockerfile
       target: development
     environment:
       MAIL_ACCOUNTS_JSON: ${MAIL_ACCOUNTS_JSON:-[]}

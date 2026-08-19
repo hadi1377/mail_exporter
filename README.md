@@ -20,7 +20,7 @@ Then run every configured account:
 docker compose run --rm exporter
 ```
 
-List the latest 100 inbox messages. Docker keeps the password prompt hidden:
+List the latest 100 inbox messages for one account. Docker keeps the password prompt hidden:
 
 ```sh
 docker compose run --rm exporter you@example.com

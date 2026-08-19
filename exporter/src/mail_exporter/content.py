@@ -11,7 +11,7 @@ from .privacy import Redactor
 
 def decode_header_value(value: str | None) -> str:
     return "".join(
-        part.decode(encoding or "utf-8", errors="replace") if isinstance(part, bytes) else part
+        decode_payload(part, encoding) if isinstance(part, bytes) else part
         for part, encoding in decode_header(value or "")
     )
 
@@ -31,13 +31,14 @@ def message_date(value: str | None) -> tuple[datetime, str]:
 
 def decode_payload(payload: bytes, charset: str | None) -> str:
     """Decode imperfect real-world MIME charset declarations safely."""
-    encoding = (charset or "utf-8").strip().strip('"\'')
-    if encoding.lower().startswith("charset="):
-        encoding = encoding.split("=", 1)[1].strip().strip('"\'')
-    try:
-        return payload.decode(encoding, errors="replace")
-    except LookupError:
-        return payload.decode("utf-8", errors="replace")
+    declared = (charset or "utf-8").strip().strip('"\'')
+    candidates = (declared, declared.partition("=")[2].strip().strip('"\''))
+    for encoding in candidates:
+        try:
+            return payload.decode(encoding, errors="replace")
+        except LookupError:
+            continue
+    return payload.decode("utf-8", errors="replace")
 
 
 def clean_body(message: Message, redactor: Redactor) -> str:

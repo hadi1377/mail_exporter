@@ -1,0 +1,9 @@
+services:
+  exporter:
+    build:
+      context: ./exporter
+      target: development
+    volumes:
+      - ./exporter:/app
+      - ./output:/output
+    command: python -m mail_exporter

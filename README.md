@@ -20,7 +20,7 @@ Then run every configured account:
 docker compose run --rm exporter
 ```
 
-The exporter writes `output/conversations.json`: an array of accounts whose conversations are sorted by newest activity and whose messages are sorted oldest to newest. Each message contains a cleaned `body`; quoted history in replies is not duplicated.
+The exporter reads both `INBOX` and any IMAP folder advertised with the `\\Sent` flag. It writes `output/conversations.json`: an array of accounts whose conversations are sorted by newest activity and whose messages are sorted oldest to newest. Each message includes its source `mailbox` and a cleaned `body`; when an email contains HTML, `body` retains that HTML. Quoted history in replies is not duplicated. Sanitize `body` before rendering it in a browser.
 
 Set `SECURE=true` in `.env` to anonymize all configured account addresses as `owner@example.com` and every other email address as a stable number. This masking also applies to message bodies, subjects, and message IDs in the JSON export.
 

@@ -4,23 +4,9 @@ from datetime import UTC, datetime
 from email.header import decode_header
 from email.message import Message
 from email.utils import getaddresses, parsedate_to_datetime
-from html.parser import HTMLParser
 import re
 
 from .privacy import Redactor
-
-
-class _TextExtractor(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.parts: list[str] = []
-
-    def handle_data(self, data: str) -> None:
-        self.parts.append(data)
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in {"br", "p", "div", "li", "tr"}:
-            self.parts.append("\n")
 
 
 def decode_header_value(value: str | None) -> str:
@@ -57,9 +43,10 @@ def clean_body(message: Message, redactor: Redactor) -> str:
             plain = text
         elif part.get_content_type() == "text/html" and html is None:
             html = text
-    if plain is None and html:
-        parser = _TextExtractor()
-        parser.feed(html)
-        plain = "".join(parser.parts)
-    body = re.split(r"(?im)^\s*(?:On .+wrote:|From: .+|-----Original Message-----)\s*$", plain or "", maxsplit=1)[0]
+    if html:
+        # Quoted reply history is commonly wrapped in blockquote or provider-specific quote containers.
+        body = re.sub(r"(?is)<blockquote\b[^>]*>.*?</blockquote\s*>", "", html)
+        body = re.sub(r"(?is)<(?:div|span)\b[^>]*class=[\"'][^\"']*(?:gmail_quote|yahoo_quoted|moz-cite-prefix)[^\"']*[\"'][^>]*>.*?</(?:div|span)\s*>", "", body)
+    else:
+        body = re.split(r"(?im)^\s*(?:On .+wrote:|From: .+|-----Original Message-----)\s*$", plain or "", maxsplit=1)[0]
     return redactor.text(re.sub(r"\n{3,}", "\n\n", body).strip())

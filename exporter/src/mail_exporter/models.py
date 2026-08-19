@@ -28,6 +28,7 @@ class MailMessage:
     recipients: list[str]
     subject: str
     body: str
+    mailbox: str
 
     def to_dict(self) -> dict[str, object]:
         return {
@@ -38,4 +39,5 @@ class MailMessage:
             "to": self.recipients,
             "subject": self.subject,
             "body": self.body,
+            "mailbox": self.mailbox,
         }

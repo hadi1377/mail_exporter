@@ -18,10 +18,10 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Export IMAP inboxes as threaded JSON conversations.")
     parser.add_argument("email", nargs="?", help="IMAP account email address")
     parser.add_argument("--password", help="Password or app password; defaults to MAIL_PASSWORD or a hidden prompt.")
-    parser.add_argument("--limit", type=int, default=100, help="Newest messages per account (default: 100).")
-    parser.add_argument("--all", action="store_true", help="Export every message in each inbox.")
+    parser.add_argument("--limit", type=int, help="Export only this many newest messages per account.")
+    parser.add_argument("--all", action="store_true", help="Export every message (the default).")
     args = parser.parse_args()
-    if args.limit < 1:
+    if args.limit is not None and args.limit < 1:
         parser.error("--limit must be at least 1")
     return args
 

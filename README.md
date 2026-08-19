@@ -24,11 +24,13 @@ The exporter reads both `INBOX` and any IMAP folder advertised with the `\\Sent`
 
 Set `SECURE=true` in `.env` to anonymize all configured account addresses as `owner@example.com` and every other email address as a stable number. This masking also applies to message bodies, subjects, and message IDs in the JSON export.
 
-List the latest 100 inbox messages for one account. Docker keeps the password prompt hidden:
+Export every available Inbox and Sent message for one account. Docker keeps the password prompt hidden:
 
 ```sh
 docker compose run --rm exporter you@example.com
 ```
+
+For a smaller test export, add `--limit 100`.
 
 Alternatively pass an app password through an environment variable:
 

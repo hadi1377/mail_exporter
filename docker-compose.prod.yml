@@ -7,5 +7,6 @@ services:
       target: production
     environment:
       MAIL_ACCOUNTS_JSON: ${MAIL_ACCOUNTS_JSON:-[]}
+      SECURE: ${SECURE:-false}
     volumes:
       - ./output:/output

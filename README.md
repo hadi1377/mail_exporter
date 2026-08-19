@@ -20,6 +20,10 @@ Then run every configured account:
 docker compose run --rm exporter
 ```
 
+The exporter writes `output/conversations.json`: an array of accounts whose conversations are sorted by newest activity and whose messages are sorted oldest to newest. Each message contains a cleaned `body`; quoted history in replies is not duplicated.
+
+Set `SECURE=true` in `.env` to anonymize all configured account addresses as `owner@example.com` and every other email address as a stable number. This masking also applies to message bodies, subjects, and message IDs in the JSON export.
+
 List the latest 100 inbox messages for one account. Docker keeps the password prompt hidden:
 
 ```sh

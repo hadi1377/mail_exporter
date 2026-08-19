@@ -7,6 +7,7 @@ services:
       target: development
     environment:
       MAIL_ACCOUNTS_JSON: ${MAIL_ACCOUNTS_JSON:-[]}
+      SECURE: ${SECURE:-false}
     volumes:
       - ./exporter:/app
       - ./output:/output

@@ -29,6 +29,17 @@ def message_date(value: str | None) -> tuple[datetime, str]:
         return datetime.min.replace(tzinfo=UTC), value or ""
 
 
+def decode_payload(payload: bytes, charset: str | None) -> str:
+    """Decode imperfect real-world MIME charset declarations safely."""
+    encoding = (charset or "utf-8").strip().strip('"\'')
+    if encoding.lower().startswith("charset="):
+        encoding = encoding.split("=", 1)[1].strip().strip('"\'')
+    try:
+        return payload.decode(encoding, errors="replace")
+    except LookupError:
+        return payload.decode("utf-8", errors="replace")
+
+
 def clean_body(message: Message, redactor: Redactor) -> str:
     plain: str | None = None
     html: str | None = None
@@ -38,7 +49,7 @@ def clean_body(message: Message, redactor: Redactor) -> str:
         payload = part.get_payload(decode=True)
         if not isinstance(payload, bytes):
             continue
-        text = payload.decode(part.get_content_charset() or "utf-8", errors="replace")
+        text = decode_payload(payload, part.get_content_charset())
         if part.get_content_type() == "text/plain" and plain is None:
             plain = text
         elif part.get_content_type() == "text/html" and html is None:

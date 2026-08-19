@@ -13,12 +13,19 @@ import os
 import ssl
 import sys
 from collections.abc import Iterable
+from urllib.error import URLError
+from urllib.parse import urlencode
+from urllib.request import urlopen
+from xml.etree import ElementTree
+
+import dns.resolver
 
 
 @dataclass(frozen=True)
 class ImapServer:
     host: str
     port: int = 993
+    security: str = "ssl"
 
 
 KNOWN_PROVIDERS: dict[str, ImapServer] = {
@@ -34,15 +41,71 @@ KNOWN_PROVIDERS: dict[str, ImapServer] = {
 
 
 def candidate_servers(address: str) -> Iterable[ImapServer]:
-    """Return likely TLS IMAP endpoints for an email address."""
+    """Discover IMAP endpoints, then fall back to common host conventions."""
     domain = address.rsplit("@", maxsplit=1)[1].lower()
     known = KNOWN_PROVIDERS.get(domain)
     if known:
         yield known
+    yield from autoconfig_servers(address)
+    yield from srv_servers(domain)
     for host in (f"imap.{domain}", f"mail.{domain}", domain):
         candidate = ImapServer(host)
         if candidate != known:
             yield candidate
+
+
+def element_name(element: ElementTree.Element) -> str:
+    return element.tag.rsplit("}", maxsplit=1)[-1]
+
+
+def child_text(element: ElementTree.Element, name: str) -> str | None:
+    for child in element:
+        if element_name(child) == name and child.text:
+            return child.text.strip()
+    return None
+
+
+def autoconfig_servers(address: str) -> Iterable[ImapServer]:
+    """Read a Thunderbird-compatible HTTPS autoconfig file, if published."""
+    domain = address.rsplit("@", maxsplit=1)[1].lower()
+    query = urlencode({"emailaddress": address})
+    urls = (
+        f"https://autoconfig.{domain}/mail/config-v1.1.xml?{query}",
+        f"https://{domain}/.well-known/autoconfig/mail/config-v1.1.xml?{query}",
+    )
+    for url in urls:
+        try:
+            with urlopen(url, timeout=5) as response:  # nosec B310: HTTPS endpoints only
+                root = ElementTree.fromstring(response.read())
+        except (URLError, OSError, ElementTree.ParseError):
+            continue
+
+        for server in root.iter():
+            if element_name(server) != "incomingServer" or server.get("type", "").lower() != "imap":
+                continue
+            host = child_text(server, "hostname")
+            port = child_text(server, "port")
+            socket_type = (child_text(server, "socketType") or "SSL").upper()
+            if not host or not port or not port.isdigit():
+                continue
+            if socket_type in {"SSL", "SSL/TLS"}:
+                yield ImapServer(host, int(port), "ssl")
+            elif socket_type == "STARTTLS":
+                yield ImapServer(host, int(port), "starttls")
+        return
+
+
+def srv_servers(domain: str) -> Iterable[ImapServer]:
+    """Resolve RFC 6186 IMAP service records, which specify host and port."""
+    for label, security in (("_imaps._tcp", "ssl"), ("_imap._tcp", "starttls")):
+        try:
+            records = dns.resolver.resolve(f"{label}.{domain}", "SRV")
+        except dns.resolver.DNSException:
+            continue
+        for record in sorted(records, key=lambda item: (item.priority, -item.weight)):
+            host = str(record.target).rstrip(".")
+            if host:
+                yield ImapServer(host, int(record.port), security)
 
 
 def decode_header_value(value: str | None) -> str:
@@ -54,12 +117,16 @@ def decode_header_value(value: str | None) -> str:
     return "".join(fragments)
 
 
-def connect(address: str, password: str) -> imaplib.IMAP4_SSL:
+def connect(address: str, password: str) -> imaplib.IMAP4:
     errors: list[str] = []
     context = ssl.create_default_context()
     for server in candidate_servers(address):
         try:
-            client = imaplib.IMAP4_SSL(server.host, server.port, ssl_context=context)
+            if server.security == "starttls":
+                client = imaplib.IMAP4(server.host, server.port)
+                client.starttls(ssl_context=context)
+            else:
+                client = imaplib.IMAP4_SSL(server.host, server.port, ssl_context=context)
             client.login(address, password)
             print(f"Connected to {server.host}:{server.port}", file=sys.stderr)
             return client
@@ -68,7 +135,7 @@ def connect(address: str, password: str) -> imaplib.IMAP4_SSL:
     raise ConnectionError("Could not connect or authenticate with a discovered IMAP server. Attempted: " + "; ".join(errors))
 
 
-def print_messages(client: imaplib.IMAP4_SSL, limit: int | None) -> int:
+def print_messages(client: imaplib.IMAP4, limit: int | None) -> int:
     status, _ = client.select("INBOX", readonly=True)
     if status != "OK":
         raise RuntimeError("Could not open the INBOX")

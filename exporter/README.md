@@ -1,6 +1,6 @@
 # Mail exporter
 
-The project runs entirely in Docker and uses Python's built-in IMAP client—no local Python installation is required. It recognises common public providers (Gmail, Microsoft, Yahoo, iCloud, AOL, Zoho, and Fastmail), then tries standard IMAP host names for custom domains.
+The project runs entirely in Docker—no local Python installation is required. It discovers custom mail servers from Thunderbird-compatible HTTPS autoconfig files and IMAP DNS SRV records, which provide the exact hostname and port (for example, `server.example.com`). It also recognises common public providers and finally tries standard host names for domains that publish no discovery records.
 
 Copy the Compose selection once:
 

@@ -8,5 +8,6 @@ services:
     environment:
       MAIL_ACCOUNTS_JSON: ${MAIL_ACCOUNTS_JSON:-[]}
       SECURE: ${SECURE:-false}
+      KEEP_HTML: ${KEEP_HTML:-false}
     volumes:
       - ./output:/output

@@ -53,7 +53,8 @@ def main() -> None:
         raise SystemExit("Error: provide an email address or configure MAIL_ACCOUNTS_JSON")
 
     redactor = Redactor((account.email for account in accounts), os.getenv("SECURE", "false").lower() in {"1", "true", "yes", "on"})
-    mailbox = ImapMailbox(ImapServerDiscovery())
+    keep_html = os.getenv("KEEP_HTML", "false").lower() in {"1", "true", "yes", "on"}
+    mailbox = ImapMailbox(ImapServerDiscovery(), keep_html)
     builder = ConversationBuilder()
     exported = []
     for account in accounts:

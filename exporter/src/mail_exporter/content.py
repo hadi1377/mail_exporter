@@ -4,6 +4,7 @@ from datetime import UTC, datetime
 from email.header import decode_header
 from email.message import Message
 from email.utils import getaddresses, parsedate_to_datetime
+from html import unescape
 import re
 
 from .privacy import Redactor
@@ -41,11 +42,25 @@ def decode_payload(payload: bytes, charset: str | None) -> str:
     return payload.decode("utf-8", errors="replace")
 
 
-def clean_body(message: Message, redactor: Redactor) -> str:
+def html_to_text(value: str) -> str:
+    text = re.sub(r"(?is)<(script|style|head)\b[^>]*>.*?</\1\s*>", "", value)
+    text = re.sub(r"(?is)<!--.*?-->", "", text)
+    text = re.sub(r"(?i)<br\s*/?>", "\n", text)
+    text = re.sub(
+        r"(?i)</?(?:p|div|h[1-6]|li|tr|table|ul|ol|hr|blockquote|section|article|header|footer)\b[^>]*>",
+        "\n",
+        text,
+    )
+    text = re.sub(r"(?s)<[^>]+>", "", text)
+    return unescape(text).replace("\xa0", " ")
+
+
+def clean_body(message: Message, redactor: Redactor, keep_html: bool = False) -> str:
     plain: str | None = None
     html: str | None = None
     for part in message.walk():
-        if part.is_multipart() or "attachment" in part.get("Content-Disposition", "").lower():
+        disposition = str(part.get("Content-Disposition", "")).lower()
+        if part.is_multipart() or "attachment" in disposition:
             continue
         payload = part.get_payload(decode=True)
         if not isinstance(payload, bytes):
@@ -59,6 +74,8 @@ def clean_body(message: Message, redactor: Redactor) -> str:
         # Quoted reply history is commonly wrapped in blockquote or provider-specific quote containers.
         body = re.sub(r"(?is)<blockquote\b[^>]*>.*?</blockquote\s*>", "", html)
         body = re.sub(r"(?is)<(?:div|span)\b[^>]*class=[\"'][^\"']*(?:gmail_quote|yahoo_quoted|moz-cite-prefix)[^\"']*[\"'][^>]*>.*?</(?:div|span)\s*>", "", body)
+        if not keep_html:
+            body = html_to_text(body)
     else:
         body = re.split(r"(?im)^\s*(?:On .+wrote:|From: .+|-----Original Message-----)\s*$", plain or "", maxsplit=1)[0]
     return redactor.text(re.sub(r"\n{3,}", "\n\n", body).strip())

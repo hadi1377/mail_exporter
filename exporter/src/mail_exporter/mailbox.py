@@ -14,8 +14,9 @@ from .privacy import Redactor
 
 
 class ImapMailbox:
-    def __init__(self, discovery: ImapServerDiscovery) -> None:
+    def __init__(self, discovery: ImapServerDiscovery, keep_html: bool = False) -> None:
         self._discovery = discovery
+        self._keep_html = keep_html
 
     def fetch(self, account: Account, limit: int | None, redactor: Redactor) -> list[MailMessage]:
         client = self._connect(account)
@@ -28,11 +29,23 @@ class ImapMailbox:
                     continue
                 uids = self._message_uids(client)
                 selected = uids if limit is None else uids[-limit:]
-                messages.extend(
-                    message
-                    for uid in selected
-                    if (message := self._fetch(client, uid, mailbox, redactor))
+                print(
+                    f"Found {len(uids)} message(s) in {mailbox}"
+                    + (f", fetching {len(selected)} newest." if len(selected) != len(uids) else "."),
+                    file=sys.stderr,
                 )
+                for index, uid in enumerate(selected, start=1):
+                    message = self._fetch(client, uid, mailbox, redactor)
+                    if message is None:
+                        print(
+                            f"[{index}/{len(selected)}] skipped {mailbox} uid {uid.decode(errors='replace')}",
+                            file=sys.stderr,
+                        )
+                        continue
+                    subject = " ".join((message.subject or "(no subject)").split())
+                    sender = message.sender or "(unknown sender)"
+                    print(f"[{index}/{len(selected)}] {mailbox} | {sender} | {subject}", file=sys.stderr)
+                    messages.append(message)
             messages.sort(key=lambda message: message.sort_date, reverse=True)
             if limit is not None:
                 messages = messages[:limit]
@@ -115,8 +128,7 @@ class ImapMailbox:
             raise RuntimeError("Could not list INBOX messages")
         return result[0].split() if result and result[0] else []
 
-    @staticmethod
-    def _fetch(client: imaplib.IMAP4, uid: bytes, mailbox: str, redactor: Redactor) -> MailMessage | None:
+    def _fetch(self, client: imaplib.IMAP4, uid: bytes, mailbox: str, redactor: Redactor) -> MailMessage | None:
         status, response = client.uid("fetch", uid, "(BODY.PEEK[])")
         if status != "OK" or not response or not isinstance(response[0], tuple):
             return None
@@ -133,6 +145,6 @@ class ImapMailbox:
             sender=sender[0] if sender else "",
             recipients=header_addresses(message.get("To"), redactor),
             subject=redactor.text(decode_header_value(message.get("Subject"))),
-            body=clean_body(message, redactor),
+            body=clean_body(message, redactor, self._keep_html),
             mailbox=mailbox,
         )

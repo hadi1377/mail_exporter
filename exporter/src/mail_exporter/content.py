@@ -55,6 +55,12 @@ def html_to_text(value: str) -> str:
     return unescape(text).replace("\xa0", " ")
 
 
+def normalize_text(value: str) -> str:
+    text = value.replace("\r\n", "\n").replace("\r", "\n")
+    text = re.sub(r"[ \t]+", " ", text)
+    return re.sub(r"\n+", "\n", text).strip()
+
+
 def clean_body(message: Message, redactor: Redactor, keep_html: bool = False) -> str:
     plain: str | None = None
     html: str | None = None
@@ -78,4 +84,4 @@ def clean_body(message: Message, redactor: Redactor, keep_html: bool = False) ->
             body = html_to_text(body)
     else:
         body = re.split(r"(?im)^\s*(?:On .+wrote:|From: .+|-----Original Message-----)\s*$", plain or "", maxsplit=1)[0]
-    return redactor.text(re.sub(r"\n{3,}", "\n\n", body).strip())
+    return redactor.text(normalize_text(body))
